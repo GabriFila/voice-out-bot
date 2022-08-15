@@ -1,12 +1,15 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	tele "gopkg.in/telebot.v3"
 	"k8s.io/klog/v2"
@@ -30,9 +33,17 @@ func exists(path string) (bool, error) {
 	}
 	return false, err
 }
+
+type NullPoller struct {
+}
+
+func (p *NullPoller) Poll(b *tele.Bot, updates chan tele.Update, stop chan struct{}) {
+}
+
 func main() {
 
 	klog.InitFlags(nil)
+
 	if ex, err := exists(".env"); ex && err == nil {
 		klog.Info("LOADING ENV")
 		err := godotenv.Load()
@@ -49,16 +60,16 @@ func main() {
 	klog.Info("PORT", PORT)
 
 	config := tele.Settings{
-		Token: TOKEN,
-		// Poller: &tele.LongPoller{Timeout: 10 * time.Second},
-		Poller: &tele.Webhook{
-			Endpoint:       &tele.WebhookEndpoint{PublicURL: WEBHOOK_URL},
-			AllowedUpdates: []string{"callback_query", "message"},
-			Listen:         fmt.Sprintf(":%s", PORT),
-		},
+		Token:       TOKEN,
+		Poller:      &NullPoller{},
+		Synchronous: true,
+		Verbose:     true,
+		Offline:     true,
 	}
 
 	b, err := tele.NewBot(config)
+
+	// b.ProcessUpdate()
 	if err != nil {
 		klog.Fatal(err)
 		return
@@ -99,12 +110,31 @@ func main() {
 
 			}
 		}
-		return c.Send("C'è stato un problema con questo file, sorry")
+		return c.Send("C'è stato un problema con questo file, sorry :(")
 	})
 
 	b.Handle(tele.OnText, func(ctx tele.Context) error {
 		return ctx.Send("I'm alive!")
 	})
 
-	b.Start()
+	go b.Start()
+
+	server := gin.Default()
+
+	server.POST("/", func(c *gin.Context) {
+		jsonData, err := ioutil.ReadAll(c.Request.Body)
+		if err != nil {
+			klog.Fatalf("Error when reading request body: %v", err)
+		}
+
+		var update tele.Update
+
+		if err := json.Unmarshal(jsonData, &update); err != nil {
+			klog.Fatalf("Error when unmarshaling update %v", err)
+		}
+		b.ProcessUpdate(update)
+		c.Status(200)
+	})
+
+	server.Run()
 }
