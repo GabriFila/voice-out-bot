@@ -1,15 +1,13 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	tele "gopkg.in/telebot.v3"
 	"k8s.io/klog/v2"
@@ -32,18 +30,12 @@ func exists(path string) (bool, error) {
 		return false, nil
 	}
 	return false, err
-}
 
-type NullPoller struct {
-}
-
-func (p *NullPoller) Poll(b *tele.Bot, updates chan tele.Update, stop chan struct{}) {
 }
 
 func main() {
 
 	klog.InitFlags(nil)
-
 	if ex, err := exists(".env"); ex && err == nil {
 		klog.Info("LOADING ENV")
 		err := godotenv.Load()
@@ -59,17 +51,32 @@ func main() {
 	klog.Info("WEBHOOK_URL", WEBHOOK_URL)
 	klog.Info("PORT", PORT)
 
-	config := tele.Settings{
-		Token:       TOKEN,
-		Poller:      &NullPoller{},
-		Synchronous: true,
-		Verbose:     true,
-		Offline:     true,
+	var config tele.Settings
+
+	if WEBHOOK_URL == "" {
+		// delete bot webhook
+		_, err := http.Get(fmt.Sprintf("https://api.telegram.org/bot%s/deleteWebhook", TOKEN))
+
+		if err != nil {
+			log.Fatal(err)
+		}
+		config = tele.Settings{
+			Token:  TOKEN,
+			Poller: &tele.LongPoller{Timeout: 10 * time.Second},
+		}
+	} else {
+
+		config = tele.Settings{
+			Token: TOKEN,
+			Poller: &tele.Webhook{
+				Endpoint:       &tele.WebhookEndpoint{PublicURL: WEBHOOK_URL},
+				AllowedUpdates: []string{"callback_query", "message"},
+				Listen:         fmt.Sprintf(":%s", PORT),
+			},
+		}
 	}
 
 	b, err := tele.NewBot(config)
-
-	// b.ProcessUpdate()
 	if err != nil {
 		klog.Fatal(err)
 		return
@@ -88,10 +95,11 @@ func main() {
 		} else {
 			if len(file.FilePath) > 0 {
 				fileDownloadUrl := fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", TOKEN, file.FilePath)
-				downloadFileCmd := exec.Command("curl", fileDownloadUrl, "-o", file.FileID)
-				if err := downloadFileCmd.Run(); err != nil {
+
+				if err := DownloadFile(file.FileID, fileDownloadUrl); err != nil {
 					klog.Fatal("Error when downloading file", err)
 				}
+
 				convertedFileName := fmt.Sprintf("tg_%s.mp3", nowFmt)
 				converFileCmd := exec.Command("ffmpeg", "-i", file.FileID, "-acodec", "libmp3lame", convertedFileName)
 				if err := converFileCmd.Run(); err != nil {
@@ -110,31 +118,24 @@ func main() {
 
 			}
 		}
-		return c.Send("C'è stato un problema con questo file, sorry :(")
+		return c.Send("C'è stato un problema con questo file, sorry")
 	})
 
 	b.Handle(tele.OnText, func(ctx tele.Context) error {
-		return ctx.Send("I'm alive!")
+		return ctx.Send("Hi! I'm here, send me a voice message and I'll hosw you magic!")
 	})
 
-	go b.Start()
-
-	server := gin.Default()
-
-	server.POST("/", func(c *gin.Context) {
-		jsonData, err := ioutil.ReadAll(c.Request.Body)
-		if err != nil {
-			klog.Fatalf("Error when reading request body: %v", err)
-		}
-
-		var update tele.Update
-
-		if err := json.Unmarshal(jsonData, &update); err != nil {
-			klog.Fatalf("Error when unmarshaling update %v", err)
-		}
-		b.ProcessUpdate(update)
-		c.Status(200)
+	b.Handle("/help", func(ctx tele.Context) error {
+		return ctx.Send("Hello👋\nI'm bot that can turn any voice message into file to be shared outside of telegram.\n\nIf you like me, please make a little donation to my creator, thank you!")
 	})
 
-	server.Run()
+	b.Handle("/privacy", func(ctx tele.Context) error {
+		return ctx.Send("Hello👋\nI take privacy very seriously:\n- I do not store any of the messages and files we exchange\n- I do not store any information about you.\nYou simply write, I respond, that's it!")
+	})
+
+	b.Handle("/donate", func(ctx tele.Context) error {
+		return ctx.Send("Hello👋\nIf you would like to thank my creator for my services, please donate using paypal to this email gabriele.filaferro@gmail.com!")
+	})
+
+	b.Start()
 }

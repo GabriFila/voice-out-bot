@@ -2,9 +2,6 @@ FROM golang:1.19.0-alpine3.16
 
 RUN apk add  --no-cache ffmpeg
 RUN apk add  --no-cache vorbis-tools
-# TODO remove the need for curl
-RUN apk add  --no-cache curl
-
 
 WORKDIR /app
 COPY go.mod ./
