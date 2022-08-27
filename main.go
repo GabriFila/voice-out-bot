@@ -88,6 +88,7 @@ func main() {
 	nowFmt := now[:len(now)-6]
 
 	b.Handle(tele.OnVoice, func(c tele.Context) error {
+		c.Send(fmt.Sprintf("All right! Processing %ds", c.Message().Voice.Duration))
 		klog.Infof("Handling voice message from %s", c.Chat().Username)
 
 		if file, err := b.FileByID(c.Message().Voice.File.FileID); err != nil {
@@ -118,7 +119,7 @@ func main() {
 
 			}
 		}
-		return c.Send("C'è stato un problema con questo file, sorry")
+		return c.Send("Sorry! There has been an issue with this voice message 😔")
 	})
 
 	b.Handle(tele.OnText, func(ctx tele.Context) error {
