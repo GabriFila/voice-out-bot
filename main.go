@@ -100,12 +100,14 @@ func main() {
 				if err := DownloadFile(file.FileID, fileDownloadUrl); err != nil {
 					klog.Fatal("Error when downloading file", err)
 				}
+				c.Send("File downloaded")
 
 				convertedFileName := fmt.Sprintf("tg_%s.mp3", nowFmt)
 				converFileCmd := exec.Command("ffmpeg", "-i", file.FileID, "-acodec", "libmp3lame", convertedFileName)
 				if err := converFileCmd.Run(); err != nil {
 					klog.Fatal("Error when converting file", err)
 				}
+				c.Send("File processed")
 
 				deleteFile(file.FileID)
 
