@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -88,7 +87,6 @@ func main() {
 	nowFmt := now[:len(now)-6]
 
 	b.Handle(tele.OnVoice, func(c tele.Context) error {
-		c.Send(fmt.Sprintf("All right! Processing %ds", c.Message().Voice.Duration))
 		klog.Infof("Handling voice message from %s", c.Chat().Username)
 
 		if file, err := b.FileByID(c.Message().Voice.File.FileID); err != nil {
@@ -96,21 +94,11 @@ func main() {
 		} else {
 			if len(file.FilePath) > 0 {
 				fileDownloadUrl := fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", TOKEN, file.FilePath)
+				convertedFileName := fmt.Sprintf("tg_%s.mp3", nowFmt)
 
-				if err := DownloadFile(file.FileID, fileDownloadUrl); err != nil {
+				if err := DownloadFile(convertedFileName, fileDownloadUrl); err != nil {
 					klog.Fatal("Error when downloading file", err)
 				}
-				c.Send("File downloaded")
-
-				convertedFileName := fmt.Sprintf("tg_%s.mp3", nowFmt)
-				converFileCmd := exec.Command("ffmpeg", "-i", file.FileID, "-acodec", "libmp3lame", convertedFileName)
-				if err := converFileCmd.Run(); err != nil {
-					klog.Fatal("Error when converting file", err)
-				}
-				c.Send("File processed")
-
-				deleteFile(file.FileID)
-
 				defer deleteFile(convertedFileName)
 
 				retFile := tele.Audio{File: tele.FromDisk(convertedFileName), Title: convertedFileName, FileName: convertedFileName}

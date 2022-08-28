@@ -1,4 +1,4 @@
-module voice2fileBot
+module voiceOutBot
 
 go 1.19
 
