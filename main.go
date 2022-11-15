@@ -29,7 +29,6 @@ func exists(path string) (bool, error) {
 		return false, nil
 	}
 	return false, err
-
 }
 
 func main() {
@@ -46,9 +45,9 @@ func main() {
 	TOKEN := os.Getenv("TOKEN")
 	WEBHOOK_URL := os.Getenv("WEBHOOK_URL")
 	PORT := os.Getenv("PORT")
-	klog.Info("TOKEN", TOKEN)
-	klog.Info("WEBHOOK_URL", WEBHOOK_URL)
-	klog.Info("PORT", PORT)
+	klog.Infof("TOKEN %s", TOKEN)
+	klog.Infof("WEBHOOK_URL %s", WEBHOOK_URL)
+	klog.Infof("PORT %s", PORT)
 
 	var config tele.Settings
 
@@ -117,14 +116,17 @@ func main() {
 	})
 
 	b.Handle("/help", func(ctx tele.Context) error {
+		klog.Info("RECEIVED HELP COMMAND")
 		return ctx.Send("Hello👋\nI'm bot that can turn any voice message into file to be shared outside of telegram.\n\nIf you like me, please make a little donation to my creator, thank you!")
 	})
 
 	b.Handle("/privacy", func(ctx tele.Context) error {
+		klog.Info("RECEIVED PRIVACY COMMAND")
 		return ctx.Send("Hello👋\nI take privacy very seriously:\n- I do not store any of the messages and files we exchange\n- I do not store any information about you.\nYou simply write, I respond, that's it!")
 	})
 
 	b.Handle("/donate", func(ctx tele.Context) error {
+		klog.Info("RECEIVED DONATE COMMAND")
 		return ctx.Send("Hello👋\nIf you would like to thank my creator for my services, please donate using paypal to this email gabriele.filaferro@gmail.com!")
 	})
 
