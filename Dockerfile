@@ -7,7 +7,7 @@ RUN go mod download
 
 COPY *.go ./
 
-RUN go build -o /voice2fileBot
+RUN go build -o /voiceOutBot
 
 
-CMD [ "/voice2fileBot" ]
+CMD [ "/voiceOutBot" ]
