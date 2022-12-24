@@ -14,4 +14,4 @@ The bot is built in [Go](https://go.dev/) using the [Telebot](https://github.com
 
 ## Deployment
 
-The bot is deployed on Google Cloud Run and it follows the [buildpack](https://buildpacks.io/) convention to build the Go container for deployment. The Dockerfile is there but it is not used during the deploy pipeline.
+The bot is deployed on Google Cloud Run.
